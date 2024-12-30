@@ -13,6 +13,7 @@ set(GEN_LIB_FILES)
 list(APPEND GEN_LIB_FILES
 	src/priority_event_queue.hpp
 	src/function_wrappers.hpp
+	src/args_storage.hpp
 )
 add_library(GenLib INTERFACE ${GEN_LIB_FILES})
 
@@ -23,6 +24,7 @@ set(TESTS_FILES)
 list(APPEND TESTS_FILES
 	tests/priority_event_queue_test.cpp
 	tests/function_wrappers_test.cpp
+	tests/args_storage_test.cpp
 )
 
 set(TESTS_EXECUTABLE tests)
