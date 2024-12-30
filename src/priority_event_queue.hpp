@@ -6,6 +6,7 @@
 #include <set>
 
 #include "macros.hpp"
+#include "src/args_storage.hpp"
 #include "src/function_wrappers.hpp"
 
 BEGIN_VVW_GEN_LIB_NS
@@ -27,15 +28,24 @@ class PriorityEventQueue {
     initOrderedEvents_(config.eventPriorities);
     eventsFunctions_ = std::move(config.eventsFunctions);
     for (auto& [event, _] : config.eventPriorities) {
-      args_[event] = {};
+      eventToArgs_[event].clear();
     }
   }
+
+  template <typename... Args>
+  void addEvent(Event event, Args... args) {
+    eventToArgs_[event].push_back(
+        std::make_unique<ArgsStorage<Args...>>(args...));
+  }
+
+  int getNPendingEvents(Event event) { return eventToArgs_[event].size(); }
 
  private:
   std::vector<Event> orderedEvents_{};
   std::map<Event, std::unique_ptr<FunctionWrapperTypeEraser>>
       eventsFunctions_{};
-  std::map<Event, std::vector<std::vector<void*>>> args_{};
+  std::map<Event, std::vector<std::unique_ptr<ArgsStorageTypeEraser>>>
+      eventToArgs_{};
 
   void checkValidity_(const PriorityEventQueueConfig<Event>& config) {
     std::set<Event> events;
