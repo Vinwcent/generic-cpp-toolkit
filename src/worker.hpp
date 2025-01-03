@@ -17,6 +17,10 @@ class Worker {
   void setBlock(bool isBlocked);
   void notifyWorkWasAdded();
 
+  std::mutex &getMutex();
+
+  void shutdown();
+
  private:
   std::thread workerThread_;
   std::atomic<bool> isActive_ = true;

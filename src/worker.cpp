@@ -1,5 +1,7 @@
 #include "src/worker.hpp"
 
+#include <iostream>
+
 BEGIN_VVW_GEN_LIB_NS
 
 Worker::Worker(
@@ -9,7 +11,11 @@ Worker::Worker(
       hasWorkToDo_(hasWorkToDo),
       workerThread_(&Worker::threadLoop_, this) {}
 
-Worker::~Worker() {
+std::mutex &Worker::getMutex() { return workMutex_; }
+
+Worker::~Worker() { shutdown(); }
+
+void Worker::shutdown() {
   isActive_ = false;
   cv_.notify_one();
   if (workerThread_.joinable()) {
@@ -24,10 +30,12 @@ void Worker::notifyWorkWasAdded() { cv_.notify_one(); }
 void Worker::threadLoop_() {
   while (isActive_) {
     std::unique_lock<std::mutex> lock(workMutex_);
+    std::cout << "1\n";
     cv_.wait(lock, [this]() {
       bool workToDo = hasWorkToDo_();
       return (workToDo && !isBlocked_) || !isActive_;
     });
+    std::cout << "2\n";
     if (!isActive_) {
       return;
     }
@@ -36,9 +44,7 @@ void Worker::threadLoop_() {
       if (!isActive_ || isBlocked_) {
         break;
       }
-      lock.unlock();
       threadFunction_(lock);
-      lock.lock();
     }
   }
 }

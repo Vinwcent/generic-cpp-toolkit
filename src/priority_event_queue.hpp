@@ -2,6 +2,7 @@
 #define VVW_PRIORITY_EVENT_QUEUE_HPP
 
 #include <concepts>
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <set>
@@ -36,18 +37,34 @@ class PriorityEventQueue {
 
   template <typename... Args>
   void addEvent(Event event, Args... args) {
+    if (!worker) {
+      throw std::runtime_error(
+          "Worker must be initialized before adding events");
+    }
+    std::cout << "AH\n";
+    std::lock_guard<std::mutex> lock(worker->getMutex());
+    std::cout << "OH\n";
     eventToArgs_[event].push_back(
         std::make_unique<ArgsStorage<Args...>>(args...));
-    if (worker) {
-      worker->notifyWorkWasAdded();
-    }
+    worker->notifyWorkWasAdded();
   }
 
-  int getNPendingEvents(Event event) { return eventToArgs_[event].size(); }
+  int getNPendingEvents(Event event) {
+    if (!worker) {
+      throw std::runtime_error(
+          "Worker must be initialized before getting the number of pending "
+          "events");
+    }
+    std::lock_guard<std::mutex> lock(worker->getMutex());
+    return eventToArgs_[event].size();
+  }
 
   void startProcessingEvents() {
-    worker = std::make_unique<Worker>(&PriorityEventQueue::processNextEvent_,
-                                      &PriorityEventQueue::hasEventsToProcess_);
+    worker = std::make_unique<Worker>(
+        [this](std::unique_lock<std::mutex>& lock) {
+          this->processNextEvent_(lock);
+        },
+        [this]() { return this->hasEventsToProcess_(); });
   }
 
  private:
@@ -60,20 +77,22 @@ class PriorityEventQueue {
   std::unique_ptr<Worker> worker;
 
   void processNextEvent_(std::unique_lock<std::mutex>& lock) {
-    lock.lock();
     for (auto event : orderedEvents_) {
       int nArgsToProcess = eventToArgs_[event].size();
       if (nArgsToProcess < 1) {
         continue;
       }
-      std::vector<void*> args = eventToArgs_[event][0].getArgPtrs();
+      std::unique_ptr<ArgsStorageTypeEraser> argsStorage =
+          std::move(eventToArgs_[event][0]);
+      eventToArgs_[event].erase(eventToArgs_[event].begin());
       lock.unlock();
+      std::vector<void*> args = argsStorage->getArgPtrs();
       (*eventsFunctions_[event])(args);
+      std::cout << "IH\n";
       lock.lock();
-      eventToArgs_.erase(eventToArgs_.begin());
+      std::cout << "EH\n";
       break;
     }
-    lock.unlock();
   }
 
   bool hasEventsToProcess_() {
