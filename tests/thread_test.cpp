@@ -4,11 +4,11 @@
 
 TEST(WorkerTest, usage) {
   int value = 1;
-  std::function<void()> increaseValue([&value]() { value += 1; });
+  std::function<void(std::unique_lock<std::mutex> &)> increaseValue(
+      [&value](auto &lock) { value += 1; });
   std::function<bool()> hasWorkToDo(
       [&value]() { return value > 1 && value < 10; });
-  std::mutex mtx;
-  vvw_gen_lib::Worker worker(increaseValue, hasWorkToDo, mtx);
+  vvw_gen_lib::Worker worker(increaseValue, hasWorkToDo);
   EXPECT_EQ(value, 1);
   value += 1;
   EXPECT_EQ(value, 2);
@@ -19,11 +19,12 @@ TEST(WorkerTest, usage) {
 
 TEST(WorkerTest, block) {
   int value = 1;
-  std::function<void()> increaseValue([&value]() { value += 1; });
+  std::function<void(std::unique_lock<std::mutex> &)> increaseValue(
+      [&value](auto &lock) { value += 1; });
   std::function<bool()> hasWorkToDo(
       [&value]() { return value > 1 && value < 10; });
   std::mutex mtx;
-  vvw_gen_lib::Worker worker(increaseValue, hasWorkToDo, mtx);
+  vvw_gen_lib::Worker worker(increaseValue, hasWorkToDo);
   EXPECT_EQ(value, 1);
   value += 1;
   EXPECT_EQ(value, 2);

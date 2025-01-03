@@ -38,7 +38,9 @@ class PriorityEventQueue {
   void addEvent(Event event, Args... args) {
     eventToArgs_[event].push_back(
         std::make_unique<ArgsStorage<Args...>>(args...));
-    worker->notifyWorkWasAdded();
+    if (worker) {
+      worker->notifyWorkWasAdded();
+    }
   }
 
   int getNPendingEvents(Event event) { return eventToArgs_[event].size(); }
