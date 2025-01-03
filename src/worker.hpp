@@ -1,7 +1,9 @@
 #ifndef VVW_WORKER_HPP
 #define VVW_WORKER_HPP
 
+#include <condition_variable>
 #include <functional>
+#include <mutex>
 #include <thread>
 
 #include "src/macros.hpp"

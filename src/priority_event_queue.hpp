@@ -1,8 +1,6 @@
 #ifndef VVW_PRIORITY_EVENT_QUEUE_HPP
 #define VVW_PRIORITY_EVENT_QUEUE_HPP
 
-#include <concepts>
-#include <iostream>
 #include <map>
 #include <mutex>
 #include <set>
@@ -41,9 +39,7 @@ class PriorityEventQueue {
       throw std::runtime_error(
           "Worker must be initialized before adding events");
     }
-    std::cout << "AH\n";
     std::lock_guard<std::mutex> lock(worker->getMutex());
-    std::cout << "OH\n";
     eventToArgs_[event].push_back(
         std::make_unique<ArgsStorage<Args...>>(args...));
     worker->notifyWorkWasAdded();
@@ -88,9 +84,7 @@ class PriorityEventQueue {
       lock.unlock();
       std::vector<void*> args = argsStorage->getArgPtrs();
       (*eventsFunctions_[event])(args);
-      std::cout << "IH\n";
       lock.lock();
-      std::cout << "EH\n";
       break;
     }
   }

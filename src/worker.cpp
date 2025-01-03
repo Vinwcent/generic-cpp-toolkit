@@ -1,7 +1,5 @@
 #include "src/worker.hpp"
 
-#include <iostream>
-
 BEGIN_VVW_GEN_LIB_NS
 
 Worker::Worker(
@@ -30,12 +28,10 @@ void Worker::notifyWorkWasAdded() { cv_.notify_one(); }
 void Worker::threadLoop_() {
   while (isActive_) {
     std::unique_lock<std::mutex> lock(workMutex_);
-    std::cout << "1\n";
     cv_.wait(lock, [this]() {
       bool workToDo = hasWorkToDo_();
       return (workToDo && !isBlocked_) || !isActive_;
     });
-    std::cout << "2\n";
     if (!isActive_) {
       return;
     }
