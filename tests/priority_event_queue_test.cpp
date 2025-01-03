@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include "src/priority_event_queue_builder.hpp"
+
 enum class DummyEvent { EVENT_1 };
 
 TEST(PriorityEventQueueTest, construction) {
@@ -96,4 +98,19 @@ TEST(PriorityEventQueueTest, processEventWhileAdding) {
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   EXPECT_EQ(value, 105);
+}
+
+TEST(PriorityEventQueueBuilderTest, builder) {
+  int value = 1;
+  std::function<void(int, int)> valueAffine(
+      [&value](int a, int b) { value = value * a + b; });
+
+  vvw_gen_lib::PriorityEventQueueBuilder<DummyEvent> builder{};
+  builder.registerEvent(DummyEvent::EVENT_1, 1, valueAffine);
+
+  auto queue = builder.build();
+  queue->startProcessingEvents();
+  queue->addEvent(DummyEvent::EVENT_1, 2, 3);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(value, 5);
 }

@@ -19,6 +19,11 @@ template <EnumClass Event>
 struct PriorityEventQueueConfig {
   std::map<Event, int> eventPriorities{};
   std::map<Event, std::unique_ptr<FunctionWrapperTypeEraser>> eventsFunctions{};
+
+  void clear() {
+    eventPriorities.clear();
+    eventsFunctions.clear();
+  }
 };
 
 template <EnumClass Event>
