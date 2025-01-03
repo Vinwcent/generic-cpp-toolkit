@@ -14,8 +14,12 @@ list(APPEND GEN_LIB_FILES
 	src/priority_event_queue.hpp
 	src/function_wrappers.hpp
 	src/args_storage.hpp
+	src/worker.hpp
+	src/worker.cpp
 )
-add_library(GenLib INTERFACE ${GEN_LIB_FILES})
+add_library(GenLib ${GEN_LIB_FILES})
+target_include_directories(GenLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 
 # Tests
 enable_testing()
@@ -25,13 +29,14 @@ list(APPEND TESTS_FILES
 	tests/priority_event_queue_test.cpp
 	tests/function_wrappers_test.cpp
 	tests/args_storage_test.cpp
+	tests/thread_test.cpp
 )
 
 set(TESTS_EXECUTABLE tests)
 add_executable(${TESTS_EXECUTABLE} ${TESTS_FILES})
 target_include_directories(${TESTS_EXECUTABLE} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 	${GTEST_INCLUDE_DIRS})
-target_link_libraries(${TESTS_EXECUTABLE} GTest::gtest_main GTest::gtest)
+target_link_libraries(${TESTS_EXECUTABLE} GenLib GTest::gtest_main GTest::gtest)
 gtest_discover_tests(
 	${TESTS_EXECUTABLE}
 )
