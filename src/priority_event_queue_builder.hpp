@@ -10,8 +10,20 @@ BEGIN_VVW_GEN_LIB_NS
 template <EnumClass Event>
 class PriorityEventQueueBuilder {
  public:
+  template <typename... Args>
   void registerEvent(Event event, int priority,
-                     FunctionWrapperBase eventFunction) {}
+                     std::function<void(Args...)> eventFunction) {
+    queueConfig_.eventPriorities[event] = priority;
+    queueConfig_.eventsFunctions[event] =
+        std::make_unique<FunctionWrapper<Args...>>(eventFunction);
+  }
+
+  std::unique_ptr<PriorityEventQueue<Event>> build() {
+    auto eventQueue =
+        std::make_unique<PriorityEventQueue<Event>>(std::move(queueConfig_));
+    queueConfig_ = PriorityEventQueueConfig<Event>();
+    return eventQueue;
+  }
 
  private:
   PriorityEventQueueConfig<Event> queueConfig_;
