@@ -2,11 +2,11 @@
 
 BEGIN_VVW_GEN_LIB_NS
 
-Worker::Worker(std::function<void()> threadFunction,
-               std::function<bool()> hasWorkToDo, std::mutex &workMutex)
+Worker::Worker(
+    std::function<void(std::unique_lock<std::mutex> &lock)> threadFunction,
+    std::function<bool()> hasWorkToDo)
     : threadFunction_(threadFunction),
       hasWorkToDo_(hasWorkToDo),
-      workMutex_(workMutex),
       workerThread_(&Worker::threadLoop_, this) {}
 
 Worker::~Worker() {
@@ -37,7 +37,7 @@ void Worker::threadLoop_() {
         break;
       }
       lock.unlock();
-      threadFunction_();
+      threadFunction_(lock);
       lock.lock();
     }
   }

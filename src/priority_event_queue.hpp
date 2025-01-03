@@ -3,11 +3,13 @@
 
 #include <concepts>
 #include <map>
+#include <mutex>
 #include <set>
 
 #include "macros.hpp"
 #include "src/args_storage.hpp"
 #include "src/function_wrappers.hpp"
+#include "src/worker.hpp"
 
 BEGIN_VVW_GEN_LIB_NS
 
@@ -36,9 +38,15 @@ class PriorityEventQueue {
   void addEvent(Event event, Args... args) {
     eventToArgs_[event].push_back(
         std::make_unique<ArgsStorage<Args...>>(args...));
+    worker->notifyWorkWasAdded();
   }
 
   int getNPendingEvents(Event event) { return eventToArgs_[event].size(); }
+
+  void startProcessingEvents() {
+    worker = std::make_unique<Worker>(&PriorityEventQueue::processNextEvent_,
+                                      &PriorityEventQueue::hasEventsToProcess_);
+  }
 
  private:
   std::vector<Event> orderedEvents_{};
@@ -46,6 +54,35 @@ class PriorityEventQueue {
       eventsFunctions_{};
   std::map<Event, std::vector<std::unique_ptr<ArgsStorageTypeEraser>>>
       eventToArgs_{};
+
+  std::unique_ptr<Worker> worker;
+
+  void processNextEvent_(std::unique_lock<std::mutex>& lock) {
+    lock.lock();
+    for (auto event : orderedEvents_) {
+      int nArgsToProcess = eventToArgs_[event].size();
+      if (nArgsToProcess < 1) {
+        continue;
+      }
+      std::vector<void*> args = eventToArgs_[event][0].getArgPtrs();
+      lock.unlock();
+      (*eventsFunctions_[event])(args);
+      lock.lock();
+      eventToArgs_.erase(eventToArgs_.begin());
+      break;
+    }
+    lock.unlock();
+  }
+
+  bool hasEventsToProcess_() {
+    for (auto event : orderedEvents_) {
+      int nArgsToProcess = eventToArgs_[event].size();
+      if (nArgsToProcess > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   void checkValidity_(const PriorityEventQueueConfig<Event>& config) {
     std::set<Event> events;

@@ -10,8 +10,8 @@ BEGIN_VVW_GEN_LIB_NS
 
 class Worker {
  public:
-  Worker(std::function<void()> threadFunction,
-         std::function<bool()> hasWorkToDo, std::mutex &workMutex);
+  Worker(std::function<void(std::unique_lock<std::mutex> &lock)> threadFunction,
+         std::function<bool()> hasWorkToDo);
   ~Worker();
 
   void setBlock(bool isBlocked);
@@ -23,9 +23,9 @@ class Worker {
   std::atomic<bool> isBlocked_ = false;
   std::condition_variable cv_;
 
-  std::function<void()> threadFunction_;
+  std::function<void(std::unique_lock<std::mutex> &lock)> threadFunction_;
   std::function<bool()> hasWorkToDo_;
-  std::mutex &workMutex_;
+  std::mutex workMutex_;
 
   void threadLoop_();
 };
