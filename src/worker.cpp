@@ -21,7 +21,10 @@ void Worker::shutdown() {
   }
 }
 
-void Worker::setBlock(bool isBlocked) { isBlocked_ = isBlocked; }
+void Worker::setBlock(bool isBlocked) {
+  isBlocked_ = isBlocked;
+  cv_.notify_one();
+}
 
 void Worker::notifyWorkWasAdded() { cv_.notify_one(); }
 
