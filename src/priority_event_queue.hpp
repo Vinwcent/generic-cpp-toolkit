@@ -50,6 +50,19 @@ class PriorityEventQueue {
     worker->notifyWorkWasAdded();
   }
 
+  template <typename... Args>
+  void alterStoredEvent(Event event,
+                        std::function<void(Args*...)> alterFunction) {
+    if (!worker) {
+      throw std::runtime_error(
+          "Worker must be initialized before altering stored events");
+    }
+    std::lock_guard<std::mutex> lock(worker->getMutex());
+    for (auto& args : eventToArgs_[event]) {
+      args->applyFunction(alterFunction);
+    }
+  }
+
   int getNPendingEvents(Event event) {
     if (!worker) {
       throw std::runtime_error(
@@ -66,6 +79,13 @@ class PriorityEventQueue {
           this->processNextEvent_(lock);
         },
         [this]() { return this->hasEventsToProcess_(); });
+  }
+
+  void setEventProcessing(bool process) {
+    if (!worker) {
+      return;
+    }
+    worker->setBlock(!process);
   }
 
  private:

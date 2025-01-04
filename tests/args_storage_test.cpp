@@ -30,3 +30,20 @@ TEST(ArgsStorageTest, usageInFunctionWrapper) {
   (*erasedTypeWrapper[0])(storage.getArgPtrs());
   EXPECT_EQ(value, 6);
 }
+
+TEST(ArgsStorageTest, applyFunction) {
+  auto storageTypeErased =
+      std::make_unique<vvw_gen_lib::ArgsStorage<int, int>>(5, 4);
+  std::vector<void*> data = storageTypeErased->getArgPtrs();
+  EXPECT_EQ(*static_cast<int*>(data[0]), 5);
+  EXPECT_EQ(*static_cast<int*>(data[1]), 4);
+
+  storageTypeErased->applyFunction(
+      std::function<void(int*, int*)>([](int* a, int* b) {
+        *a += 1;
+        *b += 3;
+      }));
+  std::vector<void*> data2 = storageTypeErased->getArgPtrs();
+  EXPECT_EQ(*static_cast<int*>(data2[0]), 6);
+  EXPECT_EQ(*static_cast<int*>(data2[1]), 7);
+}
