@@ -23,10 +23,13 @@ class Worker {
 
   void shutdown();
 
+  bool isWorking();
+
  private:
   std::thread workerThread_;
   std::atomic<bool> isActive_ = true;
   std::atomic<bool> isBlocked_ = false;
+  std::atomic<bool> isWorking_ = false;
   std::condition_variable cv_;
 
   std::function<void(std::unique_lock<std::mutex> &lock)> threadFunction_;

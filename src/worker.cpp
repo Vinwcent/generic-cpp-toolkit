@@ -26,6 +26,8 @@ void Worker::setBlock(bool isBlocked) {
   cv_.notify_one();
 }
 
+bool Worker::isWorking() { return isWorking_; }
+
 void Worker::notifyWorkWasAdded() { cv_.notify_one(); }
 
 void Worker::threadLoop_() {
@@ -38,13 +40,14 @@ void Worker::threadLoop_() {
     if (!isActive_) {
       return;
     }
-
+    isWorking_.store(true);
     while (hasWorkToDo_()) {
       if (!isActive_ || isBlocked_) {
         break;
       }
       threadFunction_(lock);
     }
+    isWorking_.store(false);
   }
 }
 
