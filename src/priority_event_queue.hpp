@@ -29,7 +29,14 @@ struct PriorityEventQueueConfig {
 template <EnumClass Event>
 class PriorityEventQueue {
  public:
-  PriorityEventQueue(PriorityEventQueueConfig<Event>&& config) {
+  PriorityEventQueue(PriorityEventQueueConfig<Event>&& config)
+      : worker(
+            [this](std::unique_lock<std::mutex>& lock) {
+              this->processNextEvent_(lock);
+            },
+            [this]() { return this->hasEventsToProcess_(); })
+
+  {
     checkValidity_(config);
     initOrderedEvents_(config.eventPriorities);
     eventsFunctions_ = std::move(config.eventsFunctions);
@@ -40,53 +47,29 @@ class PriorityEventQueue {
 
   template <typename... Args>
   void addEvent(Event event, Args... args) {
-    if (!worker) {
-      throw std::runtime_error(
-          "Worker must be initialized before adding events");
-    }
-    std::lock_guard<std::mutex> lock(worker->getMutex());
+    std::lock_guard<std::mutex> lock(worker.getMutex());
     eventToArgs_[event].push_back(
         std::make_unique<ArgsStorage<Args...>>(args...));
-    worker->notifyWorkWasAdded();
+    worker.notifyWorkWasAdded();
   }
 
   template <typename... Args>
   void alterStoredEvent(Event event,
                         std::function<void(Args*...)> alterFunction) {
-    if (!worker) {
-      throw std::runtime_error(
-          "Worker must be initialized before altering stored events");
-    }
-    std::lock_guard<std::mutex> lock(worker->getMutex());
+    std::lock_guard<std::mutex> lock(worker.getMutex());
     for (auto& args : eventToArgs_[event]) {
       args->applyFunction(alterFunction);
     }
   }
 
   int getNPendingEvents(Event event) {
-    if (!worker) {
-      throw std::runtime_error(
-          "Worker must be initialized before getting the number of pending "
-          "events");
-    }
-    std::lock_guard<std::mutex> lock(worker->getMutex());
+    std::lock_guard<std::mutex> lock(worker.getMutex());
     return eventToArgs_[event].size();
   }
 
-  void startProcessingEvents() {
-    worker = std::make_unique<Worker>(
-        [this](std::unique_lock<std::mutex>& lock) {
-          this->processNextEvent_(lock);
-        },
-        [this]() { return this->hasEventsToProcess_(); });
-  }
+  void setEventProcessing(bool process) { worker.setBlock(!process); }
 
-  void setEventProcessing(bool process) {
-    if (!worker) {
-      return;
-    }
-    worker->setBlock(!process);
-  }
+  bool isProcessingAnEvent() { return worker.isWorking(); }
 
  private:
   std::vector<Event> orderedEvents_{};
@@ -95,7 +78,7 @@ class PriorityEventQueue {
   std::map<Event, std::vector<std::unique_ptr<ArgsStorageTypeEraser>>>
       eventToArgs_{};
 
-  std::unique_ptr<Worker> worker;
+  Worker worker;
 
   void processNextEvent_(std::unique_lock<std::mutex>& lock) {
     for (auto event : orderedEvents_) {

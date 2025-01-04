@@ -41,7 +41,6 @@ TEST(PriorityEventQueueTest, addEventTest) {
   config.eventsFunctions = std::move(erasedTypeWrapper);
 
   auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
-  queue.startProcessingEvents();
 
   queue.addEvent(DummyEvent::EVENT_1, 4, 1);
   queue.addEvent(DummyEvent::EVENT_1, 6, 1);
@@ -65,7 +64,6 @@ TEST(PriorityEventQueueTest, processEvent) {
   config.eventsFunctions = std::move(erasedTypeWrapper);
 
   auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
-  queue.startProcessingEvents();
   queue.addEvent(DummyEvent::EVENT_1, 2, 3);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   EXPECT_EQ(value, 5);
@@ -89,7 +87,6 @@ TEST(PriorityEventQueueTest, addEventAlterAndProcess) {
   config.eventsFunctions = std::move(erasedTypeWrapper);
 
   auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
-  queue.startProcessingEvents();
   queue.setEventProcessing(false);
   queue.addEvent(DummyEvent::EVENT_1, 2, 3);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -121,7 +118,6 @@ TEST(PriorityEventQueueTest, processEventWhileAdding) {
   config.eventsFunctions = std::move(erasedTypeWrapper);
 
   auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
-  queue.startProcessingEvents();
   queue.addEvent(DummyEvent::EVENT_1, 2, 3);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   EXPECT_EQ(value, 5);
@@ -146,7 +142,6 @@ TEST(PriorityEventQueueTest, addManyEventsLaunchAndAlter) {
   config.eventsFunctions = std::move(erasedTypeWrapper);
 
   auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
-  queue.startProcessingEvents();
   queue.setEventProcessing(false);
   for (int i = 0; i < 10; ++i) {
     queue.addEvent(DummyEvent::EVENT_1, 1);
@@ -171,6 +166,60 @@ TEST(PriorityEventQueueTest, addManyEventsLaunchAndAlter) {
   });
 }
 
+TEST(PriorityEventQueueTest, alterWhileProcessing) {
+  int value = 1;
+  std::function<void(int)> valueAffine([&value](int a) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    value = value + a;
+  });
+
+  std::map<DummyEvent, std::unique_ptr<vvw_gen_lib::FunctionWrapperTypeEraser>>
+      erasedTypeWrapper;
+  erasedTypeWrapper[DummyEvent::EVENT_1] =
+      std::make_unique<vvw_gen_lib::FunctionWrapper<int>>(valueAffine);
+
+  vvw_gen_lib::PriorityEventQueueConfig<DummyEvent> config;
+  config.eventPriorities = {{DummyEvent::EVENT_1, 0}};
+  config.eventsFunctions = std::move(erasedTypeWrapper);
+
+  auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
+  queue.addEvent(DummyEvent::EVENT_1, 1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(value, 1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(150));
+  EXPECT_EQ(value, 2);
+  queue.addEvent(DummyEvent::EVENT_1, 1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  queue.alterStoredEvent(DummyEvent::EVENT_1,
+                         std::function<void(int*)>([](int* a) { *a += 1; }));
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  EXPECT_EQ(value, 3);
+}
+
+TEST(PriorityEventQueueTest, checkIsProcessing) {
+  int value = 1;
+  std::function<void(int)> valueAffine([&value](int a) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    value = value + a;
+  });
+
+  std::map<DummyEvent, std::unique_ptr<vvw_gen_lib::FunctionWrapperTypeEraser>>
+      erasedTypeWrapper;
+  erasedTypeWrapper[DummyEvent::EVENT_1] =
+      std::make_unique<vvw_gen_lib::FunctionWrapper<int>>(valueAffine);
+
+  vvw_gen_lib::PriorityEventQueueConfig<DummyEvent> config;
+  config.eventPriorities = {{DummyEvent::EVENT_1, 0}};
+  config.eventsFunctions = std::move(erasedTypeWrapper);
+
+  auto queue = vvw_gen_lib::PriorityEventQueue<DummyEvent>(std::move(config));
+  queue.addEvent(DummyEvent::EVENT_1, 1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_TRUE(queue.isProcessingAnEvent());
+  std::this_thread::sleep_for(std::chrono::milliseconds(150));
+  EXPECT_FALSE(queue.isProcessingAnEvent());
+}
+
 TEST(PriorityEventQueueBuilderTest, builder) {
   int value = 1;
   std::function<void(int, int)> valueAffine(
@@ -180,7 +229,6 @@ TEST(PriorityEventQueueBuilderTest, builder) {
   builder.registerEvent(DummyEvent::EVENT_1, 1, valueAffine);
 
   auto queue = builder.build();
-  queue->startProcessingEvents();
   queue->addEvent(DummyEvent::EVENT_1, 2, 3);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   EXPECT_EQ(value, 5);
