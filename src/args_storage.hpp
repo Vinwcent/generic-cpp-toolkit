@@ -1,6 +1,7 @@
 #ifndef VVW_ARGS_STORAGE_HPP
 #define VVW_ARGS_STORAGE_HPP
 
+#include <functional>
 #include <vector>
 
 #include "src/macros.hpp"
@@ -10,6 +11,20 @@ BEGIN_VVW_GEN_LIB_NS
 struct ArgsStorageTypeEraser {
   virtual ~ArgsStorageTypeEraser() = default;
   virtual std::vector<void*> getArgPtrs() = 0;
+
+  template <typename... Args>
+  void applyFunction(std::function<void(Args*...)> f) {
+    std::vector<void*> args = getArgPtrs();
+    applyFunctionHelper(f, args, std::index_sequence_for<Args...>{});
+  }
+
+ private:
+  template <typename... Args, size_t... I>
+  void applyFunctionHelper(std::function<void(Args*...)>& f,
+                           const std::vector<void*>& args,
+                           std::index_sequence<I...>) {
+    f(static_cast<Args*>(args[I])...);
+  }
 };
 
 template <typename... Args>
