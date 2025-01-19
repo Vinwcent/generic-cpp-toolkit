@@ -43,6 +43,7 @@ void Worker::threadLoop_() {
     isWorking_.store(true);
     while (hasWorkToDo_()) {
       if (!isActive_ || isBlocked_) {
+        isWorking_.store(false);
         break;
       }
       threadFunction_(lock);
