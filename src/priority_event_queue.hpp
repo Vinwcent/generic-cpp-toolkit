@@ -1,6 +1,7 @@
 #ifndef VVW_PRIORITY_EVENT_QUEUE_HPP
 #define VVW_PRIORITY_EVENT_QUEUE_HPP
 
+#include <algorithm>
 #include <map>
 #include <mutex>
 #include <set>
